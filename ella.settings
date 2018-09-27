@@ -1,0 +1,47 @@
+# set to "true" if the instrumented app will be executed on an emulator *AND*
+# the ella server will be run on the host machine of the emulator.
+# otherwise set to "false"
+ella.use.emulator.host.loopback=false
+
+# if ella.use.emulator.host.loopback is set to "false" *AND*
+# ella server will be running on a machine that is different
+# from the machine on which instrumentor is run, then set
+# the following to the IP address of the machine on which
+# the ella server will be run
+ella.server.ip=127.0.0.1
+
+#port number that ella server is listening on
+ella.server.port=23745
+
+# directory where ella stores coverage data and other stuff
+ella.outdir=ella-out
+
+ella.instrumentor=com.apposcopy.ella.MethodCoverageInstrumentor
+
+# generate a trace that can be fed to traceview toold
+ella.android.debug=false
+
+# file that list names of classes that are excluded from instrumentation
+ella.exclude=ella-exclude.txt
+
+# max heap space given to JVM running the instrumentor 
+ella.instrumentor.max.heapsize=2g
+
+# max heap space given to JVM running the server
+ella.server.max.heapsize=2g
+
+# path to "build-tools" inside android SDK
+# in default setting, the path is estimated
+#ella.android.buildtools.dir=/opt/android-sdk-linux/build-tools/22.0.1/
+
+# android jar to compile (ella runtime library) against
+# in default setting, the path is estimated
+#ella.android.jar=/opt/android-sdk-linux/platforms/android-19/android.jar
+
+# settings used by jarsigner to sign the instrumented apk
+ella.jarsigner.keystore=swifthand.keystore
+ella.jarsigner.storepass=swifthandKeystorePass
+ella.jarsigner.keypass=swifthandKeyPass
+ella.jarsigner.alias=swifthandkey
+
+ella.x.aapath=/Users/Fred/Library/Android/sdk/tools/bin/
