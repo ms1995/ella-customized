@@ -31,51 +31,49 @@ import com.google.common.collect.Lists;
 /*
  * @author Saswat Anand
  */
-public class Instrument
-{
-    private String originName, wrapperName;
+public class Instrument {
+	private String originName, wrapperName;
 	private DexFile dexFile;
 	private List<MethodInstrumentor> methInstrumentors = new ArrayList<>();
 	private String recorderClassName;
 
 	public HashMap<String, String> instrument(HashMap<String, String> inputFiles) throws IOException {
-        HashMap<String, String> instFiles = new HashMap<>();
+		HashMap<String, String> instFiles = new HashMap<>();
 		ArrayList<String> dexList = new ArrayList<>(inputFiles.keySet());
 		if (dexList.contains("classes.dex")) {
 			dexList.remove("classes.dex");
 			dexList.add(0, "classes.dex");
 		}
-        for (String dexFile : dexList) {
-            originName = dexFile;
-            if (dexFile.startsWith("classes") && dexFile.endsWith(".dex") && dexFile.length() > "classes.dex".length())
-                wrapperName = "EllaWrapper" + dexFile.substring("classes".length(), dexFile.length() - ".dex".length());
-            else
-                wrapperName = null;
-            instFiles.put(dexFile, instrument(inputFiles.get(dexFile)));
-        }
-        return instFiles;
-    }
+		for (String dexFile : dexList) {
+			originName = dexFile;
+			if (dexFile.startsWith("classes") && dexFile.endsWith(".dex") && dexFile.length() > "classes.dex".length())
+				wrapperName = "EllaWrapper" + dexFile.substring("classes".length(), dexFile.length() - ".dex".length());
+			else
+				wrapperName = null;
+			instFiles.put(dexFile, instrument(inputFiles.get(dexFile)));
+		}
+		return instFiles;
+	}
 
-	public String instrument(String inputFile) throws IOException
-	{
-        File mergedFile = mergeEllaRuntime(inputFile);
+	public String instrument(String inputFile) throws IOException {
+		File mergedFile = mergeEllaRuntime(inputFile);
 
 		this.dexFile = DexFileFactory.loadDexFile(mergedFile, 15);
-		
+
 		initMethInstrumentors();
- 
+
 		Pattern excludePattern = readExcludePatterns();
 
-        final List<ClassDef> classes = Lists.newArrayList();
- 
-        for (ClassDef classDef: dexFile.getClasses()) {
-            List<Method> methods = Lists.newArrayList(); 
-            boolean modifiedMethod = false;
+		final List<ClassDef> classes = Lists.newArrayList();
+
+		for (ClassDef classDef : dexFile.getClasses()) {
+			List<Method> methods = Lists.newArrayList();
+			boolean modifiedMethod = false;
 			String className = Util.dottedClassName(classDef.getType());
-			if(!className.startsWith("com.apposcopy.ella.runtime")){ 
-				if(excludePattern == null || !excludePattern.matcher(className).matches()){
-					System.out.println("Instrumenting class "+className);
-					for (Method method: classDef.getMethods()) {
+			if (!className.startsWith("com.apposcopy.ella.runtime")) {
+				if (excludePattern == null || !excludePattern.matcher(className).matches()) {
+					System.out.println("Instrumenting class " + className);
+					for (Method method : classDef.getMethods()) {
 						String name = method.getName();
 						//System.out.println("processing method '"+method.getDefiningClass()+": "+method.getReturnType()+ " "+ method.getName() + " p: " +  method.getParameters() + "'");
 						MethodImplementation implementation = method.getImplementation();
@@ -83,125 +81,127 @@ public class Instrument
 							MethodImplementation newImplementation = null;
 							//if(!method.getName().equals("<init>"))
 							newImplementation = instrument(method);
-							
-							if(newImplementation != null){
+
+							if (newImplementation != null) {
 								modifiedMethod = true;
 								methods.add(new ImmutableMethod(
-																method.getDefiningClass(),
-																method.getName(),
-																method.getParameters(),
-																method.getReturnType(),
-																method.getAccessFlags(),
-																method.getAnnotations(),
-																newImplementation));
-							} else 
+										method.getDefiningClass(),
+										method.getName(),
+										method.getParameters(),
+										method.getReturnType(),
+										method.getAccessFlags(),
+										method.getAnnotations(),
+										newImplementation));
+							} else
 								methods.add(method);
 						} else
 							methods.add(method);
 					}
 				} else
-					System.out.println("Skipping instrumentation of class "+className);
-			} else if(className.equals("com.apposcopy.ella.runtime.Ella")){
+					System.out.println("Skipping instrumentation of class " + className);
+			} else if (className.equals("com.apposcopy.ella.runtime.Ella")) {
 				modifiedMethod = true;
-				for (Method method: classDef.getMethods()) {
+				for (Method method : classDef.getMethods()) {
 					String name = method.getName();
-					if(name.equals("<clinit>")){
+					if (name.equals("<clinit>")) {
 						MutableMethodImplementation newCode = injectId(method.getImplementation(), classDef);
 						methods.add(new ImmutableMethod(
-														method.getDefiningClass(),
-														method.getName(),
-														method.getParameters(),
-														method.getReturnType(),
-														method.getAccessFlags(),
-														method.getAnnotations(),
-														newCode));
+								method.getDefiningClass(),
+								method.getName(),
+								method.getParameters(),
+								method.getReturnType(),
+								method.getAccessFlags(),
+								method.getAnnotations(),
+								newCode));
 					} else
 						methods.add(method);
 				}
 			}
 
-            if (!modifiedMethod) {
-                classes.add(classDef);
-            } else {
-                classes.add(new ImmutableClassDef(
-												  classDef.getType(),
-												  classDef.getAccessFlags(),
-												  classDef.getSuperclass(),
-												  classDef.getInterfaces(),
-												  classDef.getSourceFile(),
-												  classDef.getAnnotations(),
-												  classDef.getFields(),
-												  methods));
-            }
-        }
+			if (!modifiedMethod) {
+				classes.add(classDef);
+			} else {
+				classes.add(new ImmutableClassDef(
+						classDef.getType(),
+						classDef.getAccessFlags(),
+						classDef.getSuperclass(),
+						classDef.getInterfaces(),
+						classDef.getSourceFile(),
+						classDef.getAnnotations(),
+						classDef.getFields(),
+						methods));
+			}
+		}
 
 		File outputDexFile = File.createTempFile("ellaoutputclasses", ".dex");
 		String outputFile = outputDexFile.getAbsolutePath();
- 
-        DexFileFactory.writeDexFile(outputFile, new DexFile() {
-				@Override public Set<? extends ClassDef> getClasses() {
-					return new AbstractSet<ClassDef>() {
-						@Override public Iterator<ClassDef> iterator() {
-							return classes.iterator();
-						}
- 
-						@Override public int size() {
-							return classes.size();
-						}
-					};
-				}
-			});
+
+		DexFileFactory.writeDexFile(outputFile, new DexFile() {
+			@Override
+			public Set<? extends ClassDef> getClasses() {
+				return new AbstractSet<ClassDef>() {
+					@Override
+					public Iterator<ClassDef> iterator() {
+						return classes.iterator();
+					}
+
+					@Override
+					public int size() {
+						return classes.size();
+					}
+				};
+			}
+		});
 		return outputFile;
 	}
 
-	public MethodImplementation instrument(Method method)
-	{
+	public MethodImplementation instrument(Method method) {
 		MethodImplementation originalCode = method.getImplementation();
-        if (originalCode == null)
-            throw new RuntimeException("error: no code for method "+ method.getName());
+		if (originalCode == null)
+			throw new RuntimeException("error: no code for method " + method.getName());
 
 		int numRegisters = originalCode.getRegisterCount();
-        int numParameterRegisters = MethodUtil.getParameterRegisterCount(method);
+		int numParameterRegisters = MethodUtil.getParameterRegisterCount(method);
 		int numNonParameterRegisters = numRegisters - numParameterRegisters;
 
 		//System.out.println("numRegisters = "+numRegisters+" numParameterRegisters = "+ numParameterRegisters);
 
 		int numParamRegistersToClone = numParameterRegisters;
-		
+
 		//if(numParamRegistersToClone > 0)
 		//	System.out.println("numParamRegistersToClone: "+numParamRegistersToClone);
 
 		// add (numParamRegistersToClone + 1) new registers
 		// +1 represents the register that we will use to store coverage id
 		// at [numNonParameterRegisters...(numNonParameterRegister+numParamRegistersToClone)]
-		
+
 		int numRegistersToAdd = 0;
-		for(MethodInstrumentor methInstrumentor : methInstrumentors)
+		for (MethodInstrumentor methInstrumentor : methInstrumentors)
 			numRegistersToAdd = Math.max(numRegistersToAdd, methInstrumentor.numRegistersToAdd());
 
 		int numNewRegisters = numParamRegistersToClone + numRegistersToAdd;
 
-        MutableMethodImplementation code = new MutableMethodImplementation(originalCode, numNewRegisters + numRegisters);
+		MutableMethodImplementation code = new MutableMethodImplementation(originalCode, numNewRegisters + numRegisters);
 
-		for(MethodInstrumentor methInstrumentor : methInstrumentors)
+		for (MethodInstrumentor methInstrumentor : methInstrumentors)
 			methInstrumentor.preinstrument(method, code);
 
 		int dest = numNonParameterRegisters;
 		BuilderInstruction newInstruction;
-		
-		if(!MethodUtil.isStatic(method)){
+
+		if (!MethodUtil.isStatic(method)) {
 			newInstruction = moveRegister(dest, dest + numNewRegisters, Opcode.MOVE_OBJECT);
 			code.addInstruction(0, newInstruction);
 			dest++;
 		}
 
-		for(CharSequence paramType : method.getParameterTypes()){
+		for (CharSequence paramType : method.getParameterTypes()) {
 			int firstChar = paramType.charAt(0);
-            if (firstChar == 'J' || firstChar == 'D') {
+			if (firstChar == 'J' || firstChar == 'D') {
 				newInstruction = moveRegister(dest, dest + numNewRegisters, Opcode.MOVE_WIDE);
 				dest += 2;
 			} else {
-				if(firstChar == '[' || firstChar == 'L')
+				if (firstChar == '[' || firstChar == 'L')
 					newInstruction = moveRegister(dest, dest + numNewRegisters, Opcode.MOVE_OBJECT);
 				else
 					newInstruction = moveRegister(dest, dest + numNewRegisters, Opcode.MOVE);
@@ -210,28 +210,27 @@ public class Instrument
 			code.addInstruction(0, newInstruction);
 		}
 
-		for(MethodInstrumentor methInstrumentor : methInstrumentors)
+		for (MethodInstrumentor methInstrumentor : methInstrumentors)
 			methInstrumentor.instrument(method, code, dest);
 
-        return code;
-    }
+		return code;
+	}
 
-	private Pattern readExcludePatterns() throws IOException
-	{
+	private Pattern readExcludePatterns() throws IOException {
 		String fileName = Config.g().excludeFile;
-		if(fileName == null)
+		if (fileName == null)
 			return null;
 		File f = new File(fileName);
-		if(!f.exists()){
-			System.out.println("Exclusion file "+fileName+" does not exist.");
+		if (!f.exists()) {
+			System.out.println("Exclusion file " + fileName + " does not exist.");
 			return null;
 		}
 		BufferedReader reader = new BufferedReader(new FileReader(f));
 		String line;
 		StringBuilder builder = new StringBuilder();
 		boolean first = true;
-		while((line = reader.readLine()) != null){
-			if(first)
+		while ((line = reader.readLine()) != null) {
+			if (first)
 				first = false;
 			else
 				builder.append("|");
@@ -241,49 +240,46 @@ public class Instrument
 		return Pattern.compile(builder.toString());
 	}
 
-	private void initMethInstrumentors()
-	{
-		for(String instrumentorClassName : Config.g().instrumentorClassNames.split(",")){
-			try{
+	private void initMethInstrumentors() {
+		for (String instrumentorClassName : Config.g().instrumentorClassNames.split(",")) {
+			try {
 				MethodInstrumentor mi = (MethodInstrumentor) Class.forName(instrumentorClassName).newInstance();
 				methInstrumentors.add(mi);
 				mi.setProbeMethRef(probeMethodRef(mi.probeMethName()));
-				if(recorderClassName != null)
+				if (recorderClassName != null)
 					assert recorderClassName.equals(mi.recorderClassName());
 				recorderClassName = mi.recorderClassName();
-			} catch(ClassNotFoundException e){
+			} catch (ClassNotFoundException e) {
 				throw new Error(e);
-			} catch(InstantiationException e){
+			} catch (InstantiationException e) {
 				throw new Error(e);
-			} catch(IllegalAccessException e){
+			} catch (IllegalAccessException e) {
 				throw new Error(e);
-			} 
+			}
 		}
 	}
 
-	private MethodReference probeMethodRef(String probeMethName)
-	{
-	    String ellaClassName = wrapperName == null ? "Ella" : wrapperName;
-		for (ClassDef classDef: dexFile.getClasses()) {
-			if(classDef.getType().startsWith("Lcom/apposcopy/ella/runtime/" + ellaClassName + ";")){
-				for (Method method: classDef.getMethods()) {
+	private MethodReference probeMethodRef(String probeMethName) {
+		String ellaClassName = wrapperName == null ? "Ella" : wrapperName;
+		for (ClassDef classDef : dexFile.getClasses()) {
+			if (classDef.getType().startsWith("Lcom/apposcopy/ella/runtime/" + ellaClassName + ";")) {
+				for (Method method : classDef.getMethods()) {
 					String name = method.getName();
-					if(name.equals(probeMethName))
+					if (name.equals(probeMethName))
 						return method;
 				}
 			}
 		}
-		return null;	
+		return null;
 	}
 
-	private MutableMethodImplementation injectId(MethodImplementation code, ClassDef classDef)
-	{
+	private MutableMethodImplementation injectId(MethodImplementation code, ClassDef classDef) {
 		int regCount = code.getRegisterCount();
-		
+
 		//get the reference to the "private static String id" field
 		Field idField = null;
-		for(Field f : classDef.getStaticFields()){
-			if(f.getName().equals("id")){
+		for (Field f : classDef.getStaticFields()) {
+			if (f.getName().equals("id")) {
 				idField = f;
 				break;
 			}
@@ -291,8 +287,8 @@ public class Instrument
 
 		//get the reference to the "private static String covRecorderClassName" field
 		Field covRecorderClassNameField = null;
-		for(Field f : classDef.getStaticFields()){
-			if(f.getName().equals("recorderClassName")){
+		for (Field f : classDef.getStaticFields()) {
+			if (f.getName().equals("recorderClassName")) {
 				covRecorderClassNameField = f;
 				break;
 			}
@@ -300,25 +296,25 @@ public class Instrument
 
 		//get the reference to the "private static String covRecorderClassName" field
 		Field uploadUrlField = null;
-		for(Field f : classDef.getStaticFields()){
-			if(f.getName().equals("uploadUrl")){
+		for (Field f : classDef.getStaticFields()) {
+			if (f.getName().equals("uploadUrl")) {
 				uploadUrlField = f;
 				break;
 			}
-		}		
+		}
 
 		//get the reference to the "private static boolean useAndroidDebug" field
 		Field useAndroidDebugField = null;
-		for(Field f : classDef.getStaticFields()){
-			if(f.getName().equals("useAndroidDebug")){
+		for (Field f : classDef.getStaticFields()) {
+			if (f.getName().equals("useAndroidDebug")) {
 				useAndroidDebugField = f;
 				break;
 			}
-		}		
+		}
 
-		MutableMethodImplementation newCode = new MutableMethodImplementation(code, regCount+1);
+		MutableMethodImplementation newCode = new MutableMethodImplementation(code, regCount + 1);
 
-		assert recorderClassName != null;
+		assert recorderClassName !=null;
 		newCode.addInstruction(0, new BuilderInstruction21c(Opcode.SPUT_OBJECT, regCount, covRecorderClassNameField));
 		newCode.addInstruction(0, new BuilderInstruction21c(Opcode.CONST_STRING, regCount, new ImmutableStringReference(recorderClassName)));
 
@@ -334,90 +330,85 @@ public class Instrument
 		return newCode;
 	}
 
-	public static BuilderInstruction moveRegister(int dest, int src, Opcode opcode)
-	{
+	public static BuilderInstruction moveRegister(int dest, int src, Opcode opcode) {
 		int destNumBits = numBits(dest);
 		int srcNumBits = numBits(src);
 
-		if(destNumBits == 4)
-			if(srcNumBits == 4)
+		if (destNumBits == 4)
+			if (srcNumBits == 4)
 				return new BuilderInstruction12x(opcode, dest, src);
 			else
 				return new BuilderInstruction22x(opcode_FROM16(opcode), dest, src);
-		if(destNumBits == 8)
+		if (destNumBits == 8)
 			return new BuilderInstruction22x(opcode_FROM16(opcode), dest, src);
-		if(destNumBits == 16)
+		if (destNumBits == 16)
 			return new BuilderInstruction32x(opcode_16(opcode), dest, src);
-		throw new RuntimeException("Unexpected: "+destNumBits+" "+srcNumBits);
+		throw new RuntimeException("Unexpected: " + destNumBits + " " + srcNumBits);
 	}
 
-	public static Opcode opcode_FROM16(Opcode opcode)
-	{
-		switch(opcode){
-		case MOVE:
-			return Opcode.MOVE_FROM16;
-		case MOVE_OBJECT:
-			return Opcode.MOVE_OBJECT_FROM16;
-		case MOVE_WIDE:
-			return Opcode.MOVE_WIDE_FROM16;
-		default:
-			throw new RuntimeException("unexpected "+ opcode);
+	public static Opcode opcode_FROM16(Opcode opcode) {
+		switch (opcode) {
+			case MOVE:
+				return Opcode.MOVE_FROM16;
+			case MOVE_OBJECT:
+				return Opcode.MOVE_OBJECT_FROM16;
+			case MOVE_WIDE:
+				return Opcode.MOVE_WIDE_FROM16;
+			default:
+				throw new RuntimeException("unexpected " + opcode);
 		}
 	}
 
-	public static Opcode opcode_16(Opcode opcode)
-	{
-		switch(opcode){
-		case MOVE:
-			return Opcode.MOVE_16;
-		case MOVE_OBJECT:
-			return Opcode.MOVE_OBJECT_16;
-		case MOVE_WIDE:
-			return Opcode.MOVE_WIDE_16;
-		default:
-			throw new RuntimeException("unexpected "+ opcode);
+	public static Opcode opcode_16(Opcode opcode) {
+		switch (opcode) {
+			case MOVE:
+				return Opcode.MOVE_16;
+			case MOVE_OBJECT:
+				return Opcode.MOVE_OBJECT_16;
+			case MOVE_WIDE:
+				return Opcode.MOVE_WIDE_16;
+			default:
+				throw new RuntimeException("unexpected " + opcode);
 		}
 	}
 
-	public static int numBits(int reg)
-	{
-		if(reg < 0x0000000F)
+	public static int numBits(int reg) {
+		if (reg < 0x0000000F)
 			return 4;
-		else if(reg < 0x000000FF)
+		else if (reg < 0x000000FF)
 			return 8;
-		else if(reg < 0x0000FFFF)
+		else if (reg < 0x0000FFFF)
 			return 16;
-		else 
-			throw new RuntimeException("More than 16 bits is required to encode register "+reg);
+		else
+			throw new RuntimeException("More than 16 bits is required to encode register " + reg);
 	}
 
-	private File mergeEllaRuntime(String inputFile) throws IOException
-	{
+	private File mergeEllaRuntime(String inputFile) throws IOException {
 		String dxJar = Config.g().dxJar;
-		if(dxJar == null)
+		if (dxJar == null)
 			throw new RuntimeException("Variable dx.jar not set");
-		try{
+		try {
 			//DexMerger.main(new String[]{mergedDex.getAbsolutePath(), inputFile, ellaRuntime});
-			URLClassLoader loader = new URLClassLoader(new URL[]{new URL("file://"+dxJar)});
+			URLClassLoader loader = new URLClassLoader(new URL[]{new URL("file://" + dxJar)});
 			Class dexMergerClass = loader.loadClass("com.android.dx.merge.DexMerger");
 			java.lang.reflect.Method mainMethod = dexMergerClass.getDeclaredMethod("main", (new String[0]).getClass());
-            String runtimeDexPath = Config.g().ellaRuntime;
-            if (wrapperName != null) {
-                runtimeDexPath = runtimeDexPath.substring(0, runtimeDexPath.lastIndexOf('/') + 1)
-                                + "ella-wrappers/" + wrapperName + ".dex";
-            }
-            System.out.println("Merging " + runtimeDexPath + " to " + originName);
-			File mergedDex = File.createTempFile("ella",".dex");
+			String runtimeDexPath = Config.g().ellaRuntime;
+			if (wrapperName != null) {
+				runtimeDexPath = runtimeDexPath.substring(0, runtimeDexPath.lastIndexOf('/') + 1)
+						+ "ella-wrappers/" + wrapperName + ".dex";
+			}
+			System.out.println("Merging " + runtimeDexPath + " to " + originName);
+			File mergedDex = File.createTempFile("ella", ".dex");
 			mainMethod.invoke(null, (Object) new String[]{mergedDex.getAbsolutePath(), inputFile, runtimeDexPath});
 			return mergedDex;
-		} catch(ClassNotFoundException e){
+		} catch (ClassNotFoundException e) {
 			throw new Error(e);
-		} catch(NoSuchMethodException e){
+		} catch (NoSuchMethodException e) {
 			throw new Error(e);
-		} catch(IllegalAccessException e){
+		} catch (IllegalAccessException e) {
 			throw new Error(e);
-		} catch(InvocationTargetException e){
+		} catch (InvocationTargetException e) {
 			throw new Error(e);
-		} 
+		}
 	}
 }
