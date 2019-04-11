@@ -7,7 +7,7 @@ Basically, I added support for [MultiDex](https://developer.android.com/studio/b
 ### Extra tips for `ella.settings`
 
 * Modify `ella.x.aapath` to point it to the directory containing `apkanalyzer` (available in recent versions of Android SDK tools).
-* It's recommended to use ADB (instead of network) as the communication channel between Ella runtime and server. To do this, keep using `127.0.0.1` in `ella.server.ip`, and set up `adb reverse tcp:23745 tcp:23745` on the computer before running the instrumented app. Note that `adb reverse` is not available on Android 4.4 but `adb forward` and one relay app accepting two incoming connections (will be released later) can be used.
+* It's recommended to use ADB (instead of network) as the communication channel between Ella runtime and server. To do this, keep using `127.0.0.1` in `ella.server.ip`, and set up `adb reverse tcp:23745 tcp:23745` on the computer before running the instrumented app. Note that `adb reverse` is not available on Android 4.4 but `adb forward` and one relay app accepting two incoming connections (see [here](https://github.com/ms1995/tcp-relay-android)) can be used.
 * The generated keystore seemed to have some issues. Thus I (shamelessly) took the keystore from SwiftHand. BTW, thanks, Wontae :-)
 
 ### Extra steps for Multidex support
@@ -17,6 +17,10 @@ Basically, I added support for [MultiDex](https://developer.android.com/studio/b
 * Make sure the directory containing `dx` (available in Android build tools) is in `$PATH` (or alternatively `gen-ella-wrappers.py`).
 * Modify `MAX_COUNT` in `gen-ella-wrappers.py` to be the maximum number of additional DEX files you want to instrument. The default value is 20.
 * Run `gen-ella-wrappers.py` to generate wrapper classes for additional DEX files, which would be used subsequently by instrumentation.
+
+### License?
+
+For my parts, just do whatever you want as long as it's for non-commercial purposes. It would be appreciated if you can cite our paper, though. :-)
 
 ## ELLA: A Tool for Binary Instrumentation of Android Apps
 
