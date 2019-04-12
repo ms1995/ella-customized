@@ -7,7 +7,8 @@ Basically, I added support for [MultiDex](https://developer.android.com/studio/b
 ### Extra tips for `ella.settings`
 
 * Modify `ella.x.aapath` to point it to the directory containing `apkanalyzer` (available in recent versions of Android SDK tools).
-* It's recommended to use ADB (instead of network) as the communication channel between Ella runtime and server. To do this, keep using `127.0.0.1` in `ella.server.ip`, and set up `adb reverse tcp:23745 tcp:23745` on the computer before running the instrumented app. Note that `adb reverse` is not available on Android 4.4 but `adb forward` and one relay app accepting two incoming connections (see [here](https://github.com/ms1995/tcp-relay-android)) can be used.
+* It's recommended to use ADB (instead of network) as the communication channel between Ella runtime and server. To do this, keep using `127.0.0.1` in `ella.server.ip`, and set up `adb reverse tcp:23745 tcp:23745` on the computer before running the instrumented app.
+** Note that `adb reverse` is not available on Android 4.4, but `adb forward` and one relay app accepting two incoming connections (see [here](https://github.com/ms1995/tcp-relay-android)) can be used. Essentially, you need to run the relay app on the device, let the Ella agent connect to one port listened by the app, use `adb forward` to forward the other port listened by the app to some port on the computer, and use another TCP relay program (e.g., socat, by running `socat TCP:localhost:23745 TCP:localhost:PORT_BY_ADB_FORWARD`) to finally connect this port to Ella server.
 * The generated keystore seemed to have some issues. Thus I (shamelessly) took the keystore from SwiftHand. BTW, thanks, Wontae :-)
 
 ### Extra steps for Multidex support
