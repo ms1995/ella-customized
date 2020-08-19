@@ -19,6 +19,12 @@ Basically, I added support for [MultiDex](https://developer.android.com/studio/b
 * Modify `MAX_COUNT` in `gen-ella-wrappers.py` to be the maximum number of additional DEX files you want to instrument. The default value is 20.
 * Run `gen-ella-wrappers.py` to generate wrapper classes for additional DEX files, which would be used subsequently by instrumentation.
 
+### Known issue(s)
+
+#### `com.android.dex.DexIndexOverflowException: method ID not in [0, 0xffff]: 65536`
+
+Some DEX file contains exactly 65536 methods, and there’s no extra space to put Ella’s runtime stub (Dalvik requires each DEX to contain up to 65536 methods, and that’s why MultiDex exists.) Such APKs cannot be processed by Ella at the moment given that they require moving methods across DEX files.
+
 ### License?
 
 For my parts, just do whatever you want as long as it's for non-commercial purposes. It would be appreciated if you can cite our paper, though. :-)
